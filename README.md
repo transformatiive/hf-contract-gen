@@ -1,0 +1,1 @@
+# hf-contract-gen

@@ -1,0 +1,12 @@
+{
+  "name": "hf-contract-gen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hi Fly ACMI Wet Lease contract generator (Zoho CRM merge)",
+  "scripts": {
+    "start": "serve -s . -l ${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+}

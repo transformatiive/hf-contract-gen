@@ -1,0 +1,742 @@
+{
+  "id": "FzMY94SadtOlt0up",
+  "name": "HiFly - Contract Data Fetch",
+  "description": null,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "hifly-contract-fetch",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "webhookId": "818cb41b-36ee-48ea-a938-0ab0a374fee5"
+    },
+    {
+      "id": "router",
+      "name": "Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// Decide: list deals (no id) or fetch one deal\nconst q = $json.query || {};\nconst dealId = (q.deal_id || '').toString().trim();\nreturn [{ json: { deal_id: dealId, mode: dealId ? 'one' : 'list' } }];\n"
+      }
+    },
+    {
+      "id": "iff",
+      "name": "Has deal_id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        180,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "one",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "Get_Deal",
+      "name": "Get Deal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        -120
+      ],
+      "parameters": {
+        "url": "=https://www.zohoapis.eu/crm/v6/Deals/{{ $json.deal_id }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "Deal_Name,Company,End_Customer_Name,Contract_Aircraft,Contract_Start_Date,Contract_End_Date,Lease_Rate_p_BH,Charter_Type,Category"
+            }
+          ]
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zohoOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "zohoOAuth2Api": {
+          "id": "DRXhp7RqsC8lAGeA",
+          "name": "Zoho CRM HiFly"
+        }
+      }
+    },
+    {
+      "id": "Get_Aircraft",
+      "name": "Get Aircraft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        -120
+      ],
+      "parameters": {
+        "url": "=https://www.zohoapis.eu/crm/v6/Aircrafts/{{ ($json.data && $json.data[0] && $json.data[0].Contract_Aircraft) ? $json.data[0].Contract_Aircraft.id : '0' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "Aircraft_Type,Tail_Nr,MSN,Name"
+            }
+          ]
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zohoOAuth2Api",
+        "options": {
+          "response": {}
+        }
+      },
+      "credentials": {
+        "zohoOAuth2Api": {
+          "id": "DRXhp7RqsC8lAGeA",
+          "name": "Zoho CRM HiFly"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "build",
+      "name": "Build Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "\n// Build merge payload from the Deal (+ expanded aircraft) for the ACMI template.\nconst deal = $('Get Deal').first().json.data ? ($('Get Deal').first().json.data[0]||{}) : {};\nlet acft = {};\ntry { acft = ($('Get Aircraft').first().json.data || [{}])[0] || {}; } catch(e) {}\n\nconst fmtDate = (d) => {\n  if(!d) return '';\n  const dt = new Date(d);\n  if(isNaN(dt)) return d;\n  return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});\n};\nconst money = (n) => (n===null||n===undefined||n==='') ? '' : ('USD ' + Number(n).toLocaleString('en-US'));\n\n// Contract_Aircraft.name looks like \"A330-300 - 9H-HFA\"\nconst caName = (deal.Contract_Aircraft && deal.Contract_Aircraft.name) || '';\nconst [caType, caReg] = caName.split(' - ').map(s=>(s||'').trim());\n\nconst zoho = {\n  // ---- pulled straight from Zoho CRM ----\n  agreement_no:    deal.Deal_Name || '',\n  lessee_name:     deal.Company || (deal.End_Customer_Name && deal.End_Customer_Name.name) || '',\n  ac_type:         acft.Aircraft_Type || caType || '',\n  ac_reg:          acft.Tail_Nr || caReg || '',\n  ac_msn:          (acft.MSN!==undefined && acft.MSN!==null) ? String(acft.MSN) : '',\n  delivery_date:   fmtDate(deal.Contract_Start_Date),\n  redelivery_date: fmtDate(deal.Contract_End_Date),\n  wet_lease_price: money(deal.Lease_Rate_p_BH),\n};\n\nreturn [{ json: {\n  status: 'ok',\n  deal_id: deal.id || '',\n  deal_name: deal.Deal_Name || '',\n  source: 'zoho-crm-hifly',\n  fetched_at: new Date().toISOString(),\n  fields: zoho,\n  raw: { deal, aircraft: acft }\n}}];\n"
+      }
+    },
+    {
+      "id": "resp1",
+      "name": "Respond One",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "List_Deals",
+      "name": "List Deals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        120
+      ],
+      "parameters": {
+        "url": "https://www.zohoapis.eu/crm/v6/Deals",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "50"
+            },
+            {
+              "name": "fields",
+              "value": "Deal_Name,Company,End_Customer_Name,Contract_Aircraft,Contract_Start_Date,Contract_End_Date,Lease_Rate_p_BH,Charter_Type,Category"
+            },
+            {
+              "name": "sort_by",
+              "value": "Modified_Time"
+            },
+            {
+              "name": "sort_order",
+              "value": "desc"
+            }
+          ]
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zohoOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "zohoOAuth2Api": {
+          "id": "DRXhp7RqsC8lAGeA",
+          "name": "Zoho CRM HiFly"
+        }
+      }
+    },
+    {
+      "id": "listc",
+      "name": "Build List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        120
+      ],
+      "parameters": {
+        "jsCode": "\nconst deals = $('List Deals').first().json.data || [];\nreturn [{ json: { status:'ok', mode:'list', count: deals.length,\n  deals: deals.map(d=>({ id:d.id, name:d.Deal_Name, company:d.Company,\n    start:d.Contract_Start_Date, end:d.Contract_End_Date,\n    aircraft:(d.Contract_Aircraft&&d.Contract_Aircraft.name)||null })) } }];\n"
+      }
+    },
+    {
+      "id": "resp2",
+      "name": "Respond List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "Has deal_id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has deal_id?": {
+      "main": [
+        [
+          {
+            "node": "Get Deal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Deal": {
+      "main": [
+        [
+          {
+            "node": "Get Aircraft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Aircraft": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Payload": {
+      "main": [
+        [
+          {
+            "node": "Respond One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Deals": {
+      "main": [
+        [
+          {
+            "node": "Build List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build List": {
+      "main": [
+        [
+          {
+            "node": "Respond List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodeGroups": [],
+  "activeVersionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+  "versionCounter": 2,
+  "sourceWorkflowId": null,
+  "activeVersion": {
+    "updatedAt": "2026-07-05T21:57:06.496Z",
+    "createdAt": "2026-07-05T21:57:06.496Z",
+    "versionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+    "workflowId": "FzMY94SadtOlt0up",
+    "nodes": [
+      {
+        "id": "wh",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -260,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "hifly-contract-fetch",
+          "responseMode": "responseNode",
+          "options": {
+            "allowedOrigins": "*"
+          }
+        },
+        "webhookId": "818cb41b-36ee-48ea-a938-0ab0a374fee5"
+      },
+      {
+        "id": "router",
+        "name": "Router",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -40,
+          0
+        ],
+        "parameters": {
+          "jsCode": "\n// Decide: list deals (no id) or fetch one deal\nconst q = $json.query || {};\nconst dealId = (q.deal_id || '').toString().trim();\nreturn [{ json: { deal_id: dealId, mode: dealId ? 'one' : 'list' } }];\n"
+        }
+      },
+      {
+        "id": "iff",
+        "name": "Has deal_id?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          180,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "leftValue": "={{ $json.mode }}",
+                "rightValue": "one",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "Get_Deal",
+        "name": "Get Deal",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          400,
+          -120
+        ],
+        "parameters": {
+          "url": "=https://www.zohoapis.eu/crm/v6/Deals/{{ $json.deal_id }}",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "fields",
+                "value": "Deal_Name,Company,End_Customer_Name,Contract_Aircraft,Contract_Start_Date,Contract_End_Date,Lease_Rate_p_BH,Charter_Type,Category"
+              }
+            ]
+          },
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "zohoOAuth2Api",
+          "options": {}
+        },
+        "credentials": {
+          "zohoOAuth2Api": {
+            "id": "DRXhp7RqsC8lAGeA",
+            "name": "Zoho CRM HiFly"
+          }
+        }
+      },
+      {
+        "id": "Get_Aircraft",
+        "name": "Get Aircraft",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          620,
+          -120
+        ],
+        "parameters": {
+          "url": "=https://www.zohoapis.eu/crm/v6/Aircrafts/{{ ($json.data && $json.data[0] && $json.data[0].Contract_Aircraft) ? $json.data[0].Contract_Aircraft.id : '0' }}",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "fields",
+                "value": "Aircraft_Type,Tail_Nr,MSN,Name"
+              }
+            ]
+          },
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "zohoOAuth2Api",
+          "options": {
+            "response": {}
+          }
+        },
+        "credentials": {
+          "zohoOAuth2Api": {
+            "id": "DRXhp7RqsC8lAGeA",
+            "name": "Zoho CRM HiFly"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "build",
+        "name": "Build Payload",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          840,
+          -120
+        ],
+        "parameters": {
+          "jsCode": "\n// Build merge payload from the Deal (+ expanded aircraft) for the ACMI template.\nconst deal = $('Get Deal').first().json.data ? ($('Get Deal').first().json.data[0]||{}) : {};\nlet acft = {};\ntry { acft = ($('Get Aircraft').first().json.data || [{}])[0] || {}; } catch(e) {}\n\nconst fmtDate = (d) => {\n  if(!d) return '';\n  const dt = new Date(d);\n  if(isNaN(dt)) return d;\n  return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});\n};\nconst money = (n) => (n===null||n===undefined||n==='') ? '' : ('USD ' + Number(n).toLocaleString('en-US'));\n\n// Contract_Aircraft.name looks like \"A330-300 - 9H-HFA\"\nconst caName = (deal.Contract_Aircraft && deal.Contract_Aircraft.name) || '';\nconst [caType, caReg] = caName.split(' - ').map(s=>(s||'').trim());\n\nconst zoho = {\n  // ---- pulled straight from Zoho CRM ----\n  agreement_no:    deal.Deal_Name || '',\n  lessee_name:     deal.Company || (deal.End_Customer_Name && deal.End_Customer_Name.name) || '',\n  ac_type:         acft.Aircraft_Type || caType || '',\n  ac_reg:          acft.Tail_Nr || caReg || '',\n  ac_msn:          (acft.MSN!==undefined && acft.MSN!==null) ? String(acft.MSN) : '',\n  delivery_date:   fmtDate(deal.Contract_Start_Date),\n  redelivery_date: fmtDate(deal.Contract_End_Date),\n  wet_lease_price: money(deal.Lease_Rate_p_BH),\n};\n\nreturn [{ json: {\n  status: 'ok',\n  deal_id: deal.id || '',\n  deal_name: deal.Deal_Name || '',\n  source: 'zoho-crm-hifly',\n  fetched_at: new Date().toISOString(),\n  fields: zoho,\n  raw: { deal, aircraft: acft }\n}}];\n"
+        }
+      },
+      {
+        "id": "resp1",
+        "name": "Respond One",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          1060,
+          -120
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "List_Deals",
+        "name": "List Deals",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          400,
+          120
+        ],
+        "parameters": {
+          "url": "https://www.zohoapis.eu/crm/v6/Deals",
+          "sendQuery": true,
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "per_page",
+                "value": "50"
+              },
+              {
+                "name": "fields",
+                "value": "Deal_Name,Company,End_Customer_Name,Contract_Aircraft,Contract_Start_Date,Contract_End_Date,Lease_Rate_p_BH,Charter_Type,Category"
+              },
+              {
+                "name": "sort_by",
+                "value": "Modified_Time"
+              },
+              {
+                "name": "sort_order",
+                "value": "desc"
+              }
+            ]
+          },
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "zohoOAuth2Api",
+          "options": {}
+        },
+        "credentials": {
+          "zohoOAuth2Api": {
+            "id": "DRXhp7RqsC8lAGeA",
+            "name": "Zoho CRM HiFly"
+          }
+        }
+      },
+      {
+        "id": "listc",
+        "name": "Build List",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          620,
+          120
+        ],
+        "parameters": {
+          "jsCode": "\nconst deals = $('List Deals').first().json.data || [];\nreturn [{ json: { status:'ok', mode:'list', count: deals.length,\n  deals: deals.map(d=>({ id:d.id, name:d.Deal_Name, company:d.Company,\n    start:d.Contract_Start_Date, end:d.Contract_End_Date,\n    aircraft:(d.Contract_Aircraft&&d.Contract_Aircraft.name)||null })) } }];\n"
+        }
+      },
+      {
+        "id": "resp2",
+        "name": "Respond List",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          840,
+          120
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Access-Control-Allow-Origin",
+                  "value": "*"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Router",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Router": {
+        "main": [
+          [
+            {
+              "node": "Has deal_id?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has deal_id?": {
+        "main": [
+          [
+            {
+              "node": "Get Deal",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "List Deals",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Deal": {
+        "main": [
+          [
+            {
+              "node": "Get Aircraft",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Aircraft": {
+        "main": [
+          [
+            {
+              "node": "Build Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Payload": {
+        "main": [
+          [
+            {
+              "node": "Respond One",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "List Deals": {
+        "main": [
+          [
+            {
+              "node": "Build List",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build List": {
+        "main": [
+          [
+            {
+              "node": "Respond List",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Nuno Barreto",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-07-05T21:57:07.108Z",
+        "id": 4941,
+        "workflowId": "FzMY94SadtOlt0up",
+        "versionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+        "event": "deactivated",
+        "userId": "bfed0407-1958-4c03-93c7-82964da04457"
+      },
+      {
+        "createdAt": "2026-07-05T21:57:07.166Z",
+        "id": 4942,
+        "workflowId": "FzMY94SadtOlt0up",
+        "versionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+        "event": "activated",
+        "userId": "bfed0407-1958-4c03-93c7-82964da04457"
+      },
+      {
+        "createdAt": "2026-07-05T21:57:06.637Z",
+        "id": 4939,
+        "workflowId": "FzMY94SadtOlt0up",
+        "versionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+        "event": "deactivated",
+        "userId": "bfed0407-1958-4c03-93c7-82964da04457"
+      },
+      {
+        "createdAt": "2026-07-05T21:57:06.703Z",
+        "id": 4940,
+        "workflowId": "FzMY94SadtOlt0up",
+        "versionId": "79472610-8585-4dc4-a8ca-b033526d82c4",
+        "event": "activated",
+        "userId": "bfed0407-1958-4c03-93c7-82964da04457"
+      }
+    ]
+  }
+}

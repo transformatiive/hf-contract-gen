@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hi Fly · ACMI Wet Lease — Contract Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0e1726; --ink-2:#3a4a63; --line:#d9e0ea; --line-2:#eef2f7;
+    --bg:#f4f6f9; --panel:#ffffff; --hifly:#c8102e; --hifly-ink:#8f0b20;
+    --accent:#0b3d91; --ok:#1f9d64; --amber:#b7791f; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.08);
+    --mono:"JetBrains Mono",ui-monospace,monospace; --sans:"Archivo",system-ui,sans-serif; --serif:"Spectral",Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);
+       -webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+  /* ---- Top bar ---- */
+  header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--panel);
+         border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .tail{width:34px;height:34px;border-radius:8px;background:var(--hifly);color:#fff;
+        display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:.02em;
+        box-shadow:0 2px 8px rgba(200,16,46,.35)}
+  .brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:-.01em}
+  .brand p{margin:0;font-size:11px;color:var(--ink-2);font-family:var(--mono)}
+  .spacer{flex:1}
+  .status{font-size:11px;font-family:var(--mono);color:var(--ink-2);display:flex;align-items:center;gap:7px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(183,121,31,.15)}
+  .dot.ready{background:var(--ok);box-shadow:0 0 0 3px rgba(31,157,100,.15)}
+  .btns{display:flex;gap:8px}
+  button{font-family:var(--sans);font-weight:600;font-size:12.5px;border-radius:8px;cursor:pointer;
+         border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;transition:.15s}
+  button:hover{border-color:#c2ccda;background:#fbfcfe}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button.primary:hover{background:#1c2942}
+  button.ghost{background:transparent}
+  .deal-picker{display:flex;align-items:center;gap:6px;margin-left:8px}
+  .deal-picker select{font-family:var(--sans);font-size:12.5px;padding:8px 10px;border-radius:8px;
+        border:1px solid var(--line);background:#fff;color:var(--ink);min-width:280px;max-width:340px}
+  .deal-picker select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(11,61,145,.1)}
+  #reloadBtn{padding:8px 11px}
+  .lg-crm{color:var(--accent)} .lg-man{color:var(--amber)}
+  .chip.crm{border-color:#dbe6fb;color:var(--accent);background:#eff4fd}
+  .chip.man{border-color:#f0e2c4;color:var(--amber);background:#fdf8ee}
+  .src-badge{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:5px;font-weight:600;margin-left:6px;white-space:nowrap}
+  .src-badge.crm{color:var(--accent);background:#eff4fd;border:1px solid #dbe6fb}
+  .src-badge.man{color:var(--amber);background:#fdf8ee;border:1px solid #f0e2c4}
+  .fld.crmfill input,.fld.crmfill textarea{background:#eff4fd;border-color:#bcd3f6}
+  /* ---- Layout ---- */
+  .wrap{flex:1;display:grid;grid-template-columns:400px 1fr;min-height:0}
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:0}
+  .panel-head{padding:16px 18px 12px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--panel);z-index:5}
+  .panel-head h2{margin:0 0 3px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink)}
+  .panel-head p{margin:0;font-size:11.5px;color:var(--ink-2);line-height:1.5}
+  .src{margin-top:10px;display:flex;gap:6px}
+  .chip{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:20px;border:1px solid var(--line);
+        color:var(--ink-2);background:#fbfcfe;display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+  .chip.active{border-color:var(--accent);color:var(--accent);background:#eff4fd}
+  .group{border-bottom:1px solid var(--line-2)}
+  .group>summary{list-style:none;cursor:pointer;padding:12px 18px;display:flex;align-items:center;gap:9px;
+        font-weight:600;font-size:12.5px;user-select:none}
+  .group>summary::-webkit-details-marker{display:none}
+  .caret{transition:.2s;color:var(--ink-2);font-size:11px}
+  details[open] .caret{transform:rotate(90deg)}
+  .gcount{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-2);background:#f1f4f8;
+        padding:2px 7px;border-radius:20px}
+  .fields{padding:2px 18px 16px}
+  .fld{margin-bottom:13px}
+  .fld label{display:block;font-size:11.5px;font-weight:600;margin-bottom:5px;color:var(--ink)}
+  .fld .zoho{font-family:var(--mono);font-size:9.5px;color:var(--accent);background:#eff4fd;
+        border:1px solid #dbe6fb;border-radius:5px;padding:1px 6px;font-weight:500;margin-left:6px;white-space:nowrap}
+  .fld input,.fld textarea{width:100%;font-family:var(--sans);font-size:12.5px;color:var(--ink);
+        border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#fff;transition:.15s}
+  .fld input:focus,.fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(11,61,145,.1)}
+  .fld textarea{resize:vertical;min-height:52px;line-height:1.45}
+  .fld .hint{font-size:10.5px;color:var(--ink-2);margin-top:4px;font-style:italic}
+  .fld.filled input,.fld.filled textarea{background:#f6fbf8;border-color:#bfe6d1}
+  /* ---- Preview ---- */
+  .stage{overflow-y:auto;padding:28px;display:flex;justify-content:center;background:
+        radial-gradient(circle at 30% 0%, #eef2f7 0%, var(--bg) 60%)}
+  .page{width:min(820px,100%);background:#fff;box-shadow:var(--shadow);border:1px solid var(--line);
+        border-radius:4px;padding:64px 72px;font-family:var(--serif);color:#111a27;line-height:1.62;font-size:14px}
+  .page .missing{background:#fff3d6;border-bottom:1px dashed #d9a520;padding:0 2px;color:#7a5a10;
+        font-family:var(--mono);font-size:11px;border-radius:2px}
+  .doc-cover{text-align:center;padding:40px 0 56px;border-bottom:2px solid var(--ink);margin-bottom:36px}
+  .doc-cover .mark{width:52px;height:52px;margin:0 auto 26px;border-radius:12px;background:var(--hifly);color:#fff;
+        display:grid;place-items:center;font-family:var(--sans);font-weight:800;font-size:24px}
+  .doc-cover h1{font-family:var(--sans);font-weight:800;font-size:27px;letter-spacing:-.02em;margin:0 0 22px}
+  .cover-no{font-size:15px;margin:0 0 26px}
+  .cover-between{font-family:var(--sans);text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--ink-2);margin:18px 0 6px}
+  .cover-party{font-size:18px;margin:0}
+  .cover-party .role{font-family:var(--sans);font-size:12px;color:var(--ink-2);font-weight:500}
+  .page h2{font-family:var(--sans);font-weight:700;font-size:15px;letter-spacing:.06em;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .page h3{font-family:var(--sans);font-weight:700;font-size:14px;margin:26px 0 8px;color:var(--hifly-ink)}
+  .page p{margin:0 0 11px}
+  ol.index{columns:2;font-family:var(--sans);font-size:12px;color:var(--ink-2);margin:0 0 14px;padding-left:18px}
+  ol.index li{margin-bottom:4px}
+  .appx-list{font-family:var(--sans);font-size:11px;color:var(--ink-2);border-top:1px solid var(--line-2);padding-top:10px}
+  .intro{margin-top:8px}
+  dl.defs{margin:8px 0 0}
+  dl.defs dt{font-weight:600;font-size:13px;margin-top:11px}
+  dl.defs dd{margin:2px 0 0;padding-left:0;font-size:13px}
+  .muted{color:#8894a6;font-style:italic;font-size:12px}
+  table.notices,table.notices td,table.notices th{border:1px solid var(--line);border-collapse:collapse}
+  table.notices{width:100%;margin:6px 0 4px;font-size:12.5px}
+  table.notices th{background:#f6f8fb;text-align:left;padding:8px 10px;width:88px;font-family:var(--sans);font-size:11px;vertical-align:top}
+  table.notices td{padding:8px 10px}
+  .sign-block{margin-top:34px;border-top:2px solid var(--ink);padding-top:20px}
+  .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:26px}
+  .sig-line{margin-top:34px;color:#111a27}
+  .sig-name{font-family:var(--sans);font-size:12px;color:var(--ink-2);margin-top:4px}
+  .appendix{margin-top:40px;padding-top:8px;border-top:1px dashed var(--line)}
+  .appendix h2{border-color:var(--hifly)}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}.panel{max-height:44vh;border-right:none;border-bottom:1px solid var(--line)}}
+  /* ---- Print ---- */
+  @media print{
+    header,.panel{display:none!important}
+    .wrap{display:block}
+    .stage{padding:0;background:#fff;overflow:visible}
+    .page{width:100%;box-shadow:none;border:none;border-radius:0;padding:22mm 20mm;font-size:11.5px}
+    .page .missing{background:none;border:none;color:#111a27}
+    .doc-cover{page-break-after:always}
+    .appendix{page-break-before:always}
+    h3{page-break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="tail">ii</div>
+    <div>
+      <h1>ACMI Wet Lease · Contract Generator</h1>
+      <p>Hi Fly Ltd — live Zoho CRM merge · Transformatiive</p>
+    </div>
+  </div>
+  <div class="deal-picker">
+    <select id="dealSelect"><option value="">— Select a Deal from Zoho CRM —</option></select>
+    <button class="ghost" id="reloadBtn" onclick="loadDeals()" title="Reload deals">⟳</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusTxt">0 / 0 fields</span></div>
+  <div class="btns">
+    <button class="ghost" onclick="clearAll()">Clear</button>
+    <button class="primary" onclick="window.print()">Generate PDF</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Dynamic Fields</h2>
+      <p>Pick a Deal above to auto-fill <b class="lg-crm">CRM</b> fields from Zoho. <b class="lg-man">Manual</b> fields aren’t stored in the CRM — fill them here before generating.</p>
+      <div class="src">
+        <span class="chip crm">⚡ CRM auto</span>
+        <span class="chip man">✎ Manual</span>
+        <span class="chip" id="loadState" style="margin-left:auto">idle</span>
+      </div>
+    </div>
+    <div id="form"></div>
+  </aside>
+
+  <main class="stage">
+    <article class="page" id="page"></article>
+  </main>
+</div>
+
+<script>
+// ============================================================================
+//  HI FLY — ACMI Wet Lease Agreement  ·  Dynamic Field Map
+//  Each field: key (template token), label, group, zohoModule, zohoApiField,
+//  type, hint. zohoApiField values are SUGGESTED mappings — adjust to match
+//  the live Hi Fly Zoho CRM schema (Deals / Accounts / a custom "Wet_Leases"
+//  module). Fields with zohoApiField:null are manual / computed at generation.
+// ============================================================================
+// src:"crm"  → auto-filled from the Zoho CRM Deal (via n8n webhook)
+// src:"manual" → not stored in CRM; entered by the operator before generating
+const FIELD_MAP = [
+  // ---- Parties & identifiers -------------------------------------------------
+  { key:"agreement_no",        label:"Agreement No. / ref",          group:"Parties & Identifiers", src:"crm",    module:"Deals",    api:"Deal_Name",            type:"text",   hint:"From the Deal name" },
+  { key:"agreement_date",      label:"Agreement date",               group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"“is made on ………” — set manually" },
+  { key:"lessee_name",         label:"Wet Lessee (legal name)",      group:"Parties & Identifiers", src:"crm",    module:"Deals",    api:"Company",              type:"text",   hint:"Deal.Company (fallback End Customer)" },
+  { key:"lessee_vat",          label:"Wet Lessee VAT number",        group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"Not in CRM — enter manually" },
+  { key:"lessee_address",      label:"Wet Lessee registered office", group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"textarea",hint:"Not in CRM — enter manually" },
+  { key:"lessee_signatory",    label:"Wet Lessee signatory name",    group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"Signature block" },
+  { key:"lessee_attn",         label:"Wet Lessee — legal attn.",     group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"Notices clause 10.2" },
+  { key:"lessee_tel",          label:"Wet Lessee — tel (notices)",   group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"Notices clause 10.2" },
+  { key:"lessee_email",        label:"Wet Lessee — e-mail (notices)",group:"Parties & Identifiers", src:"manual", module:"—",        api:null,                   type:"text",   hint:"Notices clause 10.2" },
+
+  // ---- Aircraft (auto from Deal → Aircrafts lookup) --------------------------
+  { key:"ac_type",             label:"Aircraft type",                group:"Aircraft",              src:"crm",    module:"Aircrafts", api:"Aircraft_Type",       type:"text",   hint:"Via Contract Aircraft lookup" },
+  { key:"ac_msn",              label:"Aircraft MSN (serial no.)",    group:"Aircraft",              src:"crm",    module:"Aircrafts", api:"MSN",                 type:"text",   hint:"Via Contract Aircraft lookup" },
+  { key:"ac_reg",              label:"Aircraft registration mark",   group:"Aircraft",              src:"crm",    module:"Aircrafts", api:"Tail_Nr",             type:"text",   hint:"Tail Nr via lookup" },
+  { key:"ac_catering",         label:"Type of catering equipment",   group:"Aircraft",              src:"manual", module:"—",        api:null,                   type:"text",   hint:"Definitions · Aircraft" },
+  { key:"cabin_experience",    label:"Cabin crew A-type experience", group:"Aircraft",              src:"manual", module:"—",        api:null,                   type:"text",   hint:"“previous experience in A….”" },
+
+  // ---- Term & dates ----------------------------------------------------------
+  { key:"delivery_date",       label:"Delivery Date",                group:"Term & Dates",          src:"crm",    module:"Deals",    api:"Contract_Start_Date",  type:"text",   hint:"Deal.Contract Start Date" },
+  { key:"redelivery_date",     label:"Redelivery Date (≈)",          group:"Term & Dates",          src:"crm",    module:"Deals",    api:"Contract_End_Date",    type:"text",   hint:"Deal.Contract End Date" },
+  { key:"lease_term",          label:"Wet Lease Term (period)",      group:"Term & Dates",          src:"manual", module:"—",        api:null,                   type:"text",   hint:"e.g. “6 months from Delivery Date”" },
+  { key:"lessee_base",         label:"Wet Lessee’s Base (airport)",  group:"Term & Dates",          src:"manual", module:"—",        api:null,                   type:"text",   hint:"“…… Airport”" },
+
+  // ---- Commercial / Appendix A ----------------------------------------------
+  { key:"wet_lease_price",     label:"Wet Lease Price (per BH)",     group:"Commercial (Appendix A)", src:"crm",    module:"Deals",   api:"Lease_Rate_p_BH",     type:"text",   hint:"Deal.Lease Rate (p/BH)" },
+  { key:"min_bh_month",        label:"Min. guaranteed BH / month",   group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"Drives reconciliation" },
+  { key:"min_bh_term",         label:"Min. guaranteed BH / term",   group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"“never less than …… BH for the Term”" },
+  { key:"excess_bh_price",     label:"Excess BH price (per BH)",     group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"hours over the guaranteed min." },
+  { key:"per_diem",            label:"Per diem (crew & maint./day)", group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"or “included in BH rate”" },
+  { key:"instructor_perdiem",  label:"Instructor per diem / day",    group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"Definitions · Wet Lessee’s Personnel" },
+  { key:"hc_ratio",            label:"Hours-to-cycle ratio (n:1)",   group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"“…… flight hours to one cycle”" },
+  { key:"low_ratio_surcharge", label:"Low-ratio surcharge (per BH)", group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"if ratio falls below target" },
+  { key:"deposit",             label:"Deposit amount",               group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"refundable, on signature" },
+  { key:"advance_month_label", label:"First advance-payment month",  group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"“payment for …… due by ……”" },
+  { key:"advance_due_date",    label:"First advance-payment due",    group:"Commercial (Appendix A)", src:"manual", module:"—",       api:null,                  type:"text",   hint:"20th of month, in advance" },
+
+  // ---- Jurisdiction / misc ---------------------------------------------------
+  { key:"alt_jurisdiction",    label:"Alt. jurisdiction (clause 13)",group:"Jurisdiction",          src:"manual", module:"—",        api:null,                   type:"text",   hint:"“start legal action in ……”" },
+  { key:"lease_basis",         label:"Lease basis word (Eurocontrol)",group:"Jurisdiction",         src:"manual", module:"—",        api:null,                   type:"text",   hint:"“being …… leased” — e.g. “wet”" },
+];
+
+
+const TEMPLATE = "\n<div class=\"doc-cover\">\n  <div class=\"mark\">ii</div>\n  <h1>AIRCRAFT WET LEASE AGREEMENT</h1>\n  <p class=\"cover-no\">No <b>{{agreement_no}}</b></p>\n  <p class=\"cover-between\">Between</p>\n  <p class=\"cover-party\"><b>HI FLY Ltd</b><br><span class=\"role\">as Wet Lessor</span></p>\n  <p class=\"cover-between\">AND</p>\n  <p class=\"cover-party\"><b>{{lessee_name}}</b><br><span class=\"role\">as Wet Lessee</span></p>\n</div>\n\n<h2>INDEX</h2>\n<ol class=\"index\">\n  <li>DEFINITIONS</li><li>AGREEMENT TO WET LEASE</li><li>LOSS OF AIRCRAFT</li>\n  <li>PAYMENTS</li><li>WET LESSOR\u2019S OBLIGATIONS</li><li>WET LESSEE\u2019S OBLIGATIONS</li>\n  <li>LIABILITIES AND INSURANCE</li><li>TAXATION</li><li>DEFAULT</li><li>NOTICES</li>\n  <li>ASSIGNMENT AND SUBCONTRACTING</li><li>MISCELLANEOUS PROVISIONS</li>\n  <li>APPLICABLE LAW AND JURISDICTION</li><li>COUNTERPARTS</li>\n</ol>\n<p class=\"appx-list\">Appendix A \u2014 Payment Provisions \u00b7 Appendix B \u2014 Flight Program \u00b7 Appendix C \u2014 Delivery Certificate \u00b7 Appendix D \u2014 Re-Delivery Certificate \u00b7 Appendix E \u2014 Flight Report \u00b7 Appendix F \u2014 Eurocontrol Letter \u00b7 Appendix G \u2014 Emergency Response \u00b7 Appendix H \u2014 SMS Protocol</p>\n\n<p class=\"intro\"><b>Agreement</b> is made on <b>{{agreement_date}}</b>, between <b>HI FLY Ltd</b>, whose registered office and principal place of business is Skyparks Business Centre, Level 5, Malta International Airport-LUQA, LQA4000 Malta (hereinafter called \u201cthe Wet Lessor\u201d) and <b>{{lessee_name}}</b>, VAT number <b>{{lessee_vat}}</b>, whose registered office and principal place of business is <b>{{lessee_address}}</b> (hereinafter called \u201cthe Wet Lessee\u201d).</p>\n<p><b>It is hereby agreed</b> as follows:</p>\n\n<h3>1. DEFINITIONS</h3>\n<p>In this Agreement the following terms shall have the meanings set out opposite them below:</p>\n<dl class=\"defs\">\n  <dt>\u201cA.C.M.I.\u201d</dt><dd>means AIRCRAFT, CREW, MAINTENANCE and INSURANCE.</dd>\n  <dt>\u201cAgreement\u201d</dt><dd>means this agreement including appendices hereto.</dd>\n  <dt>\u201cAircraft\u201d</dt><dd>means one (1) Airbus <b>{{ac_type}}</b>, msn <b>{{ac_msn}}</b>, type of catering equipment <b>{{ac_catering}}</b>, operated by the Wet Lessor.</dd>\n  <dt>\u201cAircraft Registration\u201d</dt><dd>Malta Registration or any registration accepted by the parties \u2014 <b>{{ac_reg}}</b>.</dd>\n  <dt>\u201cBlock Hours\u201d</dt><dd>elapsed time between chocks-off for the purpose of flight until the Aircraft comes to a complete stop and chocks are put in place, as recorded in the Flight Report (Appendix E).</dd>\n  <dt>\u201cBusiness Day\u201d</dt><dd>means any day on which commercial banks are open for business in Malta.</dd>\n  <dt>\u201cDelivery Date\u201d</dt><dd>means <b>{{delivery_date}}</b>.</dd>\n  <dt>\u201cDelivery Location\u201d</dt><dd>means Wet Lessor\u2019s Base. Positioning costs from Wet Lessor\u2019s base to Wet Lessee\u2019s base at commencement are borne by the Wet Lessee; such Block Hours and Cycles are qualifying.</dd>\n  <dt>\u201cDeposit\u201d</dt><dd>means an amount payable in cash as a refundable deposit as per Appendix A.</dd>\n  <dt>\u201cMinimum guaranteed Block Hours\u201d</dt><dd>means the minimum block hours guaranteed per month but, in any case, never less than a total of <b>{{min_bh_term}}</b> block hours for the Wet Lease Term.</dd>\n  <dt>\u201cRedelivery Date\u201d</dt><dd>means the day the Aircraft is redelivered, scheduled on or about <b>{{redelivery_date}}</b>.</dd>\n  <dt>\u201cState of Registration\u201d</dt><dd>means Malta or any other country member of the European Union.</dd>\n  <dt>\u201cThird Party Liability Sum\u201d</dt><dd>means the amount of USD 1,000,000,000.</dd>\n  <dt>\u201cWet Lease Price\u201d</dt><dd>see Appendix A.</dd>\n  <dt>\u201cWet Lease Term\u201d</dt><dd>means the period <b>{{lease_term}}</b> as per Flight Program Appendix B. Extensions to be agreed between the parties.</dd>\n  <dt>\u201cWet Lessee\u201d</dt><dd>means <b>{{lessee_name}}</b> as aforesaid.</dd>\n  <dt>\u201cWet Lessee\u2019s Base\u201d</dt><dd>means <b>{{lessee_base}}</b> Airport.</dd>\n  <dt>\u201cWet Lessee\u2019s Personnel\u201d</dt><dd>means cabin crew with previous experience in <b>{{cabin_experience}}</b> sufficient to operate the Flight Program (Appendix B), dedicated exclusively to the operation. Where training is provided, Wet Lessee bears instructor per diem of <b>{{instructor_perdiem}}</b> per day per instructor plus 5\u2605 B&B accommodation, transfers and airline tickets.</dd>\n  <dt>\u201cWet Lessor\u201d</dt><dd>means HI FLY Ltd as aforesaid.</dd>\n  <dt>\u201cWet Lessor\u2019s Base\u201d</dt><dd>means Malta Airport.</dd>\n</dl>\n\n<h3>2. AGREEMENT TO WET LEASE</h3>\n<p>The Wet Lessor shall make the Aircraft available on Wet Lease to the Wet Lessee for the duration of the Wet Lease Term subject to the terms and conditions of this Agreement and its Flight Program. Obligations commence upon receipt into the Wet Lessor\u2019s Account of the Deposit and the 1st due payment. The Aircraft is delivered and redelivered at the Wet Lessor\u2019s base in Lessor\u2019s livery. <span class=\"muted\">[Full operational, positioning, livery, catering, ULD and equipment-replacement provisions per the executed agreement.]</span></p>\n\n<h3>3. LOSS OF AIRCRAFT</h3>\n<p>If the Aircraft becomes a Total Loss prior to or during the Wet Lease Term the Wet Lessor shall endeavour to provide a substitute aircraft of similar specification; failing which, performance is cancelled without further liability save for accrued rights and liabilities.</p>\n\n<h3>4. PAYMENT (SEE APPENDIX \u201cA\u201d)</h3>\n<p>Payment is complete only where cleared funds are in the Wet Lessor\u2019s Bank. Late payment carries interest of 1.5% per month. Time of payment is of the essence. <span class=\"muted\">[Set-off, cancellation-fee and repudiation provisions per Appendix A.]</span></p>\n\n<h3>5. WET LESSOR\u2019S OBLIGATIONS</h3>\n<p>The Wet Lessor shall provide, operate, maintain, crew, control and insure the Aircraft in accordance with all applicable laws of the State of Registration; warrants a current certificate of airworthiness; and, subject to availability, may provide a replacement aircraft in AOG situations not caused by the Wet Lessee. <span class=\"muted\">[Force-majeure, inspection, spares and IFE provisions per the executed agreement.]</span></p>\n\n<h3>6. WET LESSEE\u2019S OBLIGATIONS</h3>\n<p>The Wet Lessee shall arrange and pay all Direct Operating Costs; ensure supplier contracts (ground handling of type IATA SGHA 2006 or newer) are provided to the Wet Lessor; provide car, office and spares storage at the Wet Lessee\u2019s Base; book cockpit crew air transport in Business class; and bear EU 261/2004 passenger-compensation costs as operating air carrier. <span class=\"muted\">[JFK catering-security, fuel-quality, pushback/towing and high-risk-area provisions per the executed agreement.]</span></p>\n\n<h3>7. LIABILITIES AND INSURANCE</h3>\n<p>Liability is allocated per clause 7.1. Each party maintains insurance per clause 7.2, including AVN52E extended coverage for a combined single limit of not less than USD 1,000,000,000 any one aircraft/occurrence, with cross-additional-insured and waiver-of-subrogation provisions.</p>\n\n<h3>8. TAXATION</h3>\n<p>The Wet Lessee shall hold the Wet Lessor free and harmless from taxes, duties and fees arising from this Agreement or the operation of the Aircraft, except taxes levied by the Maltese Government.</p>\n\n<h3>9. DEFAULT</h3>\n<p>Breach entitles the innocent party to treat the failure as repudiation. Events of default include non-payment of the Wet Lease Price on the due date and unremedied breaches, insolvency events and enforcement processes, per clauses 9(a)\u2013(e).</p>\n\n<h3>10. NOTICES</h3>\n<p>All notices shall be in writing by personal delivery, e-mail or prepaid mail, deemed given three days after transmission. Legal proceedings shall be served as follows:</p>\n<table class=\"notices\">\n  <tr><th>Lessee</th><td><b>{{lessee_address}}</b><br>Attn: <b>{{lessee_attn}}</b><br>Tel: <b>{{lessee_tel}}</b> \u00b7 E-mail: <b>{{lessee_email}}</b></td></tr>\n  <tr><th>Lessor</th><td>Skyparks Business Centre, Level 5, Malta International Airport-LUQA, LQA4000 Malta<br>Attn: Legal Department \u00b7 legaldepartment@hifly.aero<br>copied to Commercial Department \u00b7 sales@hifly.aero</td></tr>\n</table>\n\n<h3>11. ASSIGNMENT AND SUB-CONTRACTING</h3>\n<p>Neither party may assign or pledge its rights without the other\u2019s consent (not to be unreasonably withheld). The Wet Lessor may provide a third-party-operated aircraft of no less payload/configuration, subject to the Wet Lessee\u2019s agreement.</p>\n\n<h3>12. MISCELLANEOUS PROVISIONS</h3>\n<p>This Agreement contains the entire agreement between the parties. Amendments are binding only in writing and signed by both parties. Severability applies. Clause headings are for convenience only.</p>\n\n<h3>13. APPLICABLE LAW AND JURISDICTION</h3>\n<p>This Agreement is governed by the laws of Malta and the Wet Lessee submits to the exclusive jurisdiction of the Maltese courts or any other EU court chosen by the Wet Lessor. The foregoing does not preclude the Wet Lessor from starting legal action against the Wet Lessee in <b>{{alt_jurisdiction}}</b> if, in its sole opinion, it better protects its interests.</p>\n\n<h3>14. COUNTERPARTS</h3>\n<p>This Agreement may be executed in any number of identical counterparts, each deemed an original and all together one and the same instrument.</p>\n\n<div class=\"sign-block\">\n  <p>IN WITNESS WHEREOF, the parties have caused this Aircraft Wet Lease Agreement to be executed on the day and year first written above.</p>\n  <div class=\"sign-grid\">\n    <div><p>Signed for and on behalf of<br><b>HI FLY Ltd</b><br>as WET LESSOR</p><p class=\"sig-line\">________________________________</p></div>\n    <div><p>Signed for and on behalf of<br><b>{{lessee_name}}</b><br>as WET LESSEE</p><p class=\"sig-line\">________________________________</p><p class=\"sig-name\">{{lessee_signatory}}</p></div>\n  </div>\n</div>\n\n<div class=\"appendix\">\n  <h2>APPENDIX \u201cA\u201d \u2014 PAYMENT PROVISIONS</h2>\n  <p><b>Minimum Guaranteed Block Hours.</b> A minimum of <b>{{min_bh_month}}</b> Block Hours per month during the Wet Lease Term.</p>\n  <p><b>Wet Lease Price.</b> The Wet Lessee shall pay <b>{{wet_lease_price}}</b> per block hour (BH). For all hours above the Minimum Guaranteed of <b>{{min_bh_month}}</b> BH/month, the amount of <b>{{excess_bh_price}}</b> per excess block hour.</p>\n  <p><b>Per diem.</b> <b>{{per_diem}}</b> per crew member and maintenance staff per day (or included in the block-hour rate).</p>\n  <p><b>Hours to Cycle Ratio.</b> Average monthly flight-hour-to-cycle ratio of <b>{{hc_ratio}}</b>:1. Below this ratio a surcharge of <b>{{low_ratio_surcharge}}</b> per block hour flown applies.</p>\n  <p><b>Reconciliation.</b> Excess BH and low-ratio compensation reconciled monthly; final reconciliation within 45 days of the end of the Term. A 10% Administration Fee applies to expenses incurred on behalf of the Wet Lessee.</p>\n  <p><b>Deposit.</b> The Wet Lessee shall pay <b>{{deposit}}</b> to be held as deposit, payable upon signature, returned 45 days after the end of the Agreement subject to obligations being met.</p>\n  <p><b>Payment terms.</b> Monthly Minimum Guaranteed Hours \u00d7 Wet Lease Price (i.e. <b>{{min_bh_month}}</b> BH \u00d7 <b>{{wet_lease_price}}</b>) and crew per diem paid in advance on the 20th of each month (e.g. payment for <b>{{advance_month_label}}</b> due by <b>{{advance_due_date}}</b>).</p>\n</div>\n\n<div class=\"appendix\">\n  <h2>APPENDIX \u201cF\u201d \u2014 EUROCONTROL LETTER</h2>\n  <p>From: <b>{{lessee_name}}</b> \u2014 To: Central Route Charges Office, EUROCONTROL, Rue de la Fus\u00e9e 96, B-1130 Brussels, Belgium.</p>\n  <p><b>AIR NAVIGATION CHARGES:</b> ONE (1) AIRBUS <b>{{ac_type}}</b> AIRCRAFT BEARING MANUFACTURER\u2019S SERIAL NUMBER <b>{{ac_msn}}</b> AND REGISTRATION MARK <b>{{ac_reg}}</b> (THE AIRCRAFT).</p>\n  <p>Pursuant to an Aircraft Wet Lease Agreement dated <b>{{agreement_date}}</b> relating to the Aircraft, made between <b>{{lessee_name}}</b> (the Wet Lessee) and Hi Fly Ltd (the Wet Lessor), the Aircraft will be operated by Hi Fly Ltd during the term. We authorise you to provide the Wet Lessor with statements of account for charges incurred by <b>{{lessee_name}}</b> in relation to the Aircraft being <b>{{lease_basis}}</b> leased.</p>\n  <p>For and on behalf of <b>{{lessee_name}}</b>.</p>\n</div>\n\n<div class=\"appendix appendix-certs\">\n  <h2>APPENDICES C &amp; D \u2014 DELIVERY / RE-DELIVERY CERTIFICATES</h2>\n  <p><b>Delivery (C):</b> <b>{{lessee_name}}</b> acknowledges that on <b>{{delivery_date}}</b> Hi Fly Ltd delivered for inspection one Airbus <b>{{ac_type}}</b>, serial number <b>{{ac_msn}}</b>, accepted on behalf of <b>{{lessee_name}}</b>.</p>\n  <p><b>Re-delivery (D):</b> Hi Fly Ltd acknowledges that on <b>{{redelivery_date}}</b> <b>{{lessee_name}}</b> re-delivered one Airbus <b>{{ac_type}}</b>, serial number <b>{{ac_msn}}</b>.</p>\n</div>\n";
+
+// n8n webhook that talks to the Hi Fly Zoho CRM (OAuth held in n8n, never in this app)
+const FETCH_URL = "https://trnsf.up.railway.app/webhook/hifly-contract-fetch";
+
+const form = document.getElementById('form');
+const page = document.getElementById('page');
+const state = {};
+const CRM_KEYS = FIELD_MAP.filter(f=>f.src==='crm').map(f=>f.key);
+
+// ---- build the form ----
+const groups = {};
+FIELD_MAP.forEach(f=>{ (groups[f.group] ||= []).push(f); state[f.key]=""; });
+
+Object.entries(groups).forEach(([g,items],gi)=>{
+  const d = document.createElement('details'); d.className='group'; if(gi<3) d.open=true;
+  const s = document.createElement('summary');
+  s.innerHTML = `<span class="caret">▶</span>${g}<span class="gcount">${items.length}</span>`;
+  d.appendChild(s);
+  const box = document.createElement('div'); box.className='fields';
+  items.forEach(f=>{
+    const w = document.createElement('div'); w.className='fld'; w.dataset.key=f.key; w.dataset.src=f.src;
+    const badge = f.src==='crm'
+      ? `<span class="src-badge crm" title="Auto from ${f.module}.${f.api}">⚡ ${f.module}.${f.api}</span>`
+      : `<span class="src-badge man" title="Manual entry">✎ manual</span>`;
+    const input = f.type==='textarea'
+      ? `<textarea data-k="${f.key}" placeholder="—"></textarea>`
+      : `<input type="text" data-k="${f.key}" placeholder="—">`;
+    w.innerHTML = `<label>${f.label} ${badge}</label>${input}<div class="hint">${f.hint}</div>`;
+    box.appendChild(w);
+  });
+  d.appendChild(box); form.appendChild(d);
+});
+
+form.addEventListener('input', e=>{
+  const k = e.target.dataset.k; if(!k) return;
+  state[k] = e.target.value.trim();
+  const fld = e.target.closest('.fld');
+  fld.classList.toggle('filled', !!state[k]);
+  fld.classList.remove('crmfill'); // manual edit overrides CRM styling
+  render();
+});
+
+function setField(k,v){
+  state[k]=v||"";
+  const el=document.querySelector(`[data-k="${k}"]`);
+  if(el){ el.value=v||""; const fld=el.closest('.fld');
+    fld.classList.toggle('filled', !!v);
+    if(v && CRM_KEYS.includes(k)) fld.classList.add('crmfill');
+  }
+}
+
+function render(){
+  let html = TEMPLATE.replace(/\{\{(\w+)\}\}/g,(m,k)=>{
+    const v = state[k];
+    if(v) return v;
+    const f = FIELD_MAP.find(x=>x.key===k);
+    return `<span class="missing">[${f?f.label:k}]</span>`;
+  });
+  page.innerHTML = html;
+  const total = FIELD_MAP.length;
+  const done = Object.values(state).filter(Boolean).length;
+  document.getElementById('statusTxt').textContent = `${done} / ${total} fields`;
+  document.getElementById('statusDot').classList.toggle('ready', done===total);
+}
+
+function loadState(txt,cls){ const el=document.getElementById('loadState'); el.textContent=txt; el.className='chip '+(cls||''); el.style.marginLeft='auto'; }
+
+// ---- CRM integration ----
+async function loadDeals(){
+  const sel=document.getElementById('dealSelect');
+  loadState('loading deals…','crm');
+  try{
+    const r=await fetch(FETCH_URL,{cache:'no-store'});
+    const d=await r.json();
+    sel.innerHTML='<option value="">— Select a Deal from Zoho CRM —</option>';
+    (d.deals||[]).forEach(dl=>{
+      const o=document.createElement('option'); o.value=dl.id;
+      o.textContent = dl.name + (dl.aircraft? '  ·  '+dl.aircraft : '');
+      sel.appendChild(o);
+    });
+    loadState((d.count||0)+' deals loaded','crm');
+  }catch(e){ loadState('deal load failed','man'); console.error(e); }
+}
+
+async function loadDeal(id){
+  if(!id) return;
+  loadState('fetching deal…','crm');
+  try{
+    const r=await fetch(FETCH_URL+'?deal_id='+encodeURIComponent(id),{cache:'no-store'});
+    const d=await r.json();
+    const f=d.fields||{};
+    // only overwrite CRM-sourced fields; leave manual entries intact
+    CRM_KEYS.forEach(k=>{ if(f[k]!==undefined && f[k]!=="") setField(k,f[k]); });
+    loadState('merged: '+(d.deal_name||id),'crm');
+    render();
+  }catch(e){ loadState('fetch failed','man'); console.error(e); }
+}
+
+document.getElementById('dealSelect').addEventListener('change',e=>loadDeal(e.target.value));
+
+function clearAll(){
+  Object.keys(state).forEach(k=>state[k]="");
+  document.querySelectorAll('[data-k]').forEach(el=>{el.value="";el.closest('.fld').classList.remove('filled','crmfill');});
+  document.getElementById('dealSelect').value="";
+  render();
+}
+
+render();
+loadDeals();
+</script>
+</body>
+</html>

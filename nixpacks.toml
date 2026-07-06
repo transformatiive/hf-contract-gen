@@ -1,0 +1,9 @@
+# Install wkhtmltopdf (with patched Qt) so the app can render contract PDFs server-side
+[phases.setup]
+nixPkgs = ["nodejs_20", "wkhtmltopdf"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[start]
+cmd = "node server.js"

@@ -146,7 +146,8 @@
   <div class="status"><span class="dot" id="statusDot"></span><span id="statusTxt">0 / 0 fields</span></div>
   <div class="btns">
     <button class="ghost" onclick="clearAll()">Clear</button>
-    <button class="primary" onclick="window.print()">Generate PDF</button>
+    <button class="ghost" id="dlBtn" onclick="downloadPdf()">Download PDF</button>
+    <button class="primary" id="attachBtn" onclick="attachToCrm()">Anexar ao CRM</button>
   </div>
 </header>
 
@@ -333,6 +334,46 @@ function clearAll(){
 
 render();
 loadDeals();
+
+// ---- URL deal_id auto-load + server-side PDF actions ----
+const GEN_URL = "https://trnsf.up.railway.app/webhook/hifly-generate-contract";
+function currentDealId(){
+  const u=new URLSearchParams(location.search);
+  return (u.get('deal_id')||document.getElementById('dealSelect').value||'').trim();
+}
+async function downloadPdf(){
+  const id=currentDealId(); if(!id){ alert('Escolhe um Deal primeiro.'); return; }
+  const btn=document.getElementById('dlBtn'); const t=btn.textContent; btn.textContent='A gerar…'; btn.disabled=true;
+  try{
+    const r=await fetch('/api/pdf?deal_id='+encodeURIComponent(id));
+    if(!r.ok) throw new Error('render '+r.status);
+    const blob=await r.blob();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='ACMI_'+id+'.pdf'; document.body.appendChild(a); a.click(); a.remove();
+    btn.textContent='Descarregado ✓';
+  }catch(e){ console.error(e); btn.textContent='Falhou'; }
+  finally{ setTimeout(()=>{btn.textContent=t;btn.disabled=false;},1600); }
+}
+async function attachToCrm(){
+  const id=currentDealId(); if(!id){ alert('Escolhe um Deal primeiro.'); return; }
+  if(!confirm('Anexar o contrato gerado ao Deal no Zoho CRM?')) return;
+  const btn=document.getElementById('attachBtn'); const t=btn.textContent; btn.textContent='A anexar…'; btn.disabled=true;
+  try{
+    const r=await fetch(GEN_URL+'?deal_id='+encodeURIComponent(id)+'&attach=1',{cache:'no-store'});
+    const d=await r.json();
+    btn.textContent = d.attached ? 'Anexado ✓' : 'Feito';
+  }catch(e){ console.error(e); btn.textContent='Falhou'; }
+  finally{ setTimeout(()=>{btn.textContent=t;btn.disabled=false;},2000); }
+}
+// auto-load deal from URL
+(function(){
+  const u=new URLSearchParams(location.search); const id=u.get('deal_id');
+  if(id){ const sel=document.getElementById('dealSelect');
+    // wait until deals populate, then select + load
+    const iv=setInterval(()=>{ if(sel.querySelector('option[value="'+id+'"]')){ sel.value=id; loadDeal(id); clearInterval(iv);} },400);
+    setTimeout(()=>{ clearInterval(iv); loadDeal(id); },5000); // fallback: load anyway
+  }
+})();
 </script>
 </body>
 </html>

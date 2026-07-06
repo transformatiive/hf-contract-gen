@@ -4,80 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hi Fly — Contract Preview</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--hi-navy:#1a3a6b;--hi-blue:#77b7d9;--bg:#eef2f7;--bar:#ffffff;--line:#d6deea;--ink:#2f4a78;}
+  :root{
+    --hi-navy:#1a3a6b; --hi-blue:#77b7d9; --bg:#eef2f7; --bar:#ffffff;
+    --line:#d6deea; --ink:#2f4a78; --muted:#8496b5;
+  }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:"Inter",system-ui,sans-serif;color:var(--ink)}
-  /* Top toolbar */
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column}
   .toolbar{position:sticky;top:0;z-index:20;background:var(--bar);border-bottom:1px solid var(--line);
-    display:flex;align-items:center;gap:14px;padding:12px 22px;box-shadow:0 1px 6px rgba(26,58,107,.06)}
-  .toolbar .logo{font-family:"Arial Rounded MT Bold","Inter",sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px}
-  .toolbar .logo .hi{color:var(--hi-navy)}.toolbar .logo .fly{color:var(--hi-blue)}
-  .toolbar .meta{display:flex;flex-direction:column;line-height:1.25}
-  .toolbar .meta .t{font-size:13px;font-weight:600;color:var(--hi-navy)}
-  .toolbar .meta .s{font-size:11px;color:#8496b5}
-  .toolbar .spacer{flex:1}
+    display:flex;align-items:center;gap:14px;padding:12px 22px;box-shadow:0 1px 6px rgba(26,58,107,.06);flex-wrap:wrap}
+  .logo{font-family:"Arial Rounded MT Bold","Arial",sans-serif;font-weight:800;font-size:22px;letter-spacing:-.5px}
+  .logo .hi{color:var(--hi-navy)} .logo .fly{color:var(--hi-blue)}
+  .meta{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+  .meta .t{font-size:13px;font-weight:600;color:var(--hi-navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+  .meta .s{font-size:11px;color:var(--muted)}
+  .picker{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;color:var(--ink);max-width:280px}
+  .spacer{flex:1}
   .btn{border:1px solid var(--hi-navy);background:#fff;color:var(--hi-navy);font-weight:600;font-size:13px;
-    padding:9px 16px;border-radius:8px;cursor:pointer;transition:.15s;font-family:inherit}
+    padding:9px 16px;border-radius:8px;cursor:pointer;transition:.15s;font-family:inherit;white-space:nowrap}
   .btn:hover{background:#f2f6fc}
   .btn.primary{background:var(--hi-navy);color:#fff}
   .btn.primary:hover{background:#15305a}
   .btn:disabled{opacity:.55;cursor:default}
-  .picker{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;color:var(--ink);max-width:280px}
-  /* Preview stage */
-  .stage{padding:26px 16px 60px;display:flex;justify-content:center}
-  .paper{background:#fff;width:210mm;min-height:297mm;padding:18mm 16mm;
-    box-shadow:0 6px 30px rgba(26,58,107,.16);border-radius:2px}
-  /* status */
-  .status{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
-    background:var(--hi-navy);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;
-    opacity:0;transition:.25s;pointer-events:none;box-shadow:0 4px 16px rgba(26,58,107,.3)}
-  .status.show{opacity:1}
-  .loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:80px 0;color:#8496b5}
+  .stage{flex:1;min-height:0;position:relative}
+  #frame{width:100%;height:100%;border:0;background:#525659}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;color:var(--muted);background:var(--bg);text-align:center;padding:24px}
+  .overlay.hidden{display:none}
   .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--hi-navy);border-radius:50%;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
-</style>
-<style>
-:root{
-  --hi-navy:#1a3a6b; --hi-blue:#77b7d9; --ink:#2f4a78; --ink-soft:#5a6f96;
-  --line:#d6deea; --line-soft:#eaeff6;
-}
-*{box-sizing:border-box}
-body{margin:0;background:#fff;font-family:"Arial","Helvetica Neue",Arial,sans-serif;
-     color:var(--ink);font-size:11pt;line-height:1.5;-webkit-font-smoothing:antialiased}
-.page{width:100%;padding:0}
-/* Hi fly logo (text-based, brand-accurate) */
-.hf-logo{font-family:"Arial Rounded MT Bold","Arial",sans-serif;font-weight:800;
-     font-size:30px;letter-spacing:-.5px;line-height:1;text-align:right;margin:0 0 40px}
-.hf-logo .hi{color:var(--hi-navy)} .hf-logo .fly{color:var(--hi-blue)}
-/* Cover */
-.cover{min-height:60vh;display:flex;flex-direction:column;justify-content:center;text-align:center;
-     border-bottom:2px solid var(--hi-navy);padding-bottom:40px;margin-bottom:34px}
-.cover h1{color:var(--hi-navy);font-size:26px;font-weight:800;letter-spacing:.02em;margin:0 0 26px}
-.cover .no{font-size:14px;margin:0 0 30px;color:var(--ink)}
-.cover .bt{letter-spacing:.24em;font-size:10px;text-transform:uppercase;color:var(--ink-soft);margin:16px 0 6px}
-.cover .party{font-size:17px;font-weight:700;color:var(--hi-navy);margin:0}
-.cover .role{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);margin-top:3px}
-/* Intro */
-.page p{margin:0 0 11px;text-align:justify}
-.page p.li{margin:0 0 9px;padding-left:16px;position:relative;text-align:justify}
-.page p.li:before{content:"–";position:absolute;left:0;color:var(--hi-blue)}
-/* Clause headers */
-h2.clause{color:var(--hi-navy);font-size:12.5pt;font-weight:800;letter-spacing:.02em;
-     margin:26px 0 12px;padding-top:6px}
-h2.clause .cn{display:inline-block;min-width:26px}
-h2.appx{color:var(--hi-navy);font-size:13pt;font-weight:800;text-align:center;
-     margin:30px 0 16px;padding-top:10px;border-top:1px solid var(--line)}
-/* Definition rows: bold term left, meaning right (mirrors Word) */
-.defrow{display:grid;grid-template-columns:150px 1fr;gap:14px;margin:0 0 10px;align-items:start}
-.defrow .dt{font-weight:700;color:var(--hi-navy)}
-.defrow .dd{text-align:justify}
-.fill{display:inline-block;min-width:120px;border-bottom:1px dotted var(--ink-soft)}
-b{color:var(--hi-navy)}
-.missing{background:#fff3d6;border-bottom:1px dashed #d9a520;color:#7a5a10;
-     font-family:"Courier New",monospace;font-size:9.5pt;padding:0 3px;border-radius:2px}
-
+  .status{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--hi-navy);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;
+    opacity:0;transition:.25s;pointer-events:none;box-shadow:0 4px 16px rgba(26,58,107,.3);z-index:30}
+  .status.show{opacity:1}
 </style>
 </head>
 <body>
@@ -85,79 +47,90 @@ b{color:var(--hi-navy)}
     <div class="logo"><span class="hi">Hi</span><span class="fly">fly</span></div>
     <div class="meta">
       <span class="t" id="mTitle">ACMI Wet Lease Contract</span>
-      <span class="s" id="mSub">Preview</span>
+      <span class="s" id="mSub">Pre-visualizacao</span>
     </div>
     <select id="dealPicker" class="picker" style="display:none" onchange="onPick()"></select>
     <div class="spacer"></div>
     <button class="btn" id="dlBtn" onclick="downloadPdf()">Download PDF</button>
     <button class="btn primary" id="attachBtn" onclick="attachToCrm()">Anexar ao CRM</button>
   </div>
-  <div class="stage"><article class="paper" id="paper">
-    <div class="loading"><div class="spin"></div><div>A carregar contrato…</div></div>
-  </article></div>
+
+  <div class="stage">
+    <iframe id="frame" title="Contract preview"></iframe>
+    <div class="overlay" id="overlay">
+      <div class="spin"></div>
+      <div id="overlayText">A carregar contrato...</div>
+    </div>
+  </div>
+
   <div class="status" id="status"></div>
 
 <script>
 const FETCH="https://trnsf.up.railway.app/webhook/hifly-contract-fetch";
 const GEN="https://trnsf.up.railway.app/webhook/hifly-generate-contract";
-let TEMPLATE="", DEALID="", DEALNAME="";
+let DEALID="", DEALNAME="";
 
 function qp(k){return new URLSearchParams(location.search).get(k);}
 function toast(m){const s=document.getElementById('status');s.textContent=m;s.classList.add('show');setTimeout(()=>s.classList.remove('show'),2600);}
+function showOverlay(t){const o=document.getElementById('overlay');document.getElementById('overlayText').textContent=t;o.classList.remove('hidden');}
+function hideOverlay(){document.getElementById('overlay').classList.add('hidden');}
 
 async function boot(){
-  TEMPLATE = await (await fetch('/contract_template.html')).text();
-  DEALID = (qp('deal_id')||'').trim();
-  if(DEALID){ await loadDeal(DEALID); }
-  else { await showPicker(); }
+  DEALID=(qp('deal_id')||'').trim();
+  if(DEALID){ loadDeal(DEALID); }
+  else { showPicker(); }
 }
+
 async function showPicker(){
   const sel=document.getElementById('dealPicker'); sel.style.display='';
-  document.getElementById('paper').innerHTML='<div class="loading"><div>Escolhe um Deal para pré-visualizar o contrato.</div></div>';
+  showOverlay('Escolhe um Deal para pre-visualizar o contrato.');
   try{
     const d=await (await fetch(FETCH)).json();
-    sel.innerHTML='<option value="">— Escolher Deal —</option>'+(d.deals||[]).map(x=>`<option value="${x.id}">${x.name||x.id}</option>`).join('');
+    sel.innerHTML='<option value="">-- Escolher Deal --</option>'+
+      (d.deals||[]).map(x=>'<option value="'+x.id+'">'+(x.name||x.id)+'</option>').join('');
   }catch(e){ toast('Falha a listar Deals'); }
 }
 function onPick(){ const id=document.getElementById('dealPicker').value; if(id){ DEALID=id; loadDeal(id); } }
 
-function merge(tpl,f){ return tpl.replace(/\{\{(\w+)\}\}/g,(m,k)=>{const v=f[k];return v?v:'<span class="missing">['+k+']</span>';}); }
-
 async function loadDeal(id){
-  const paper=document.getElementById('paper');
-  paper.innerHTML='<div class="loading"><div class="spin"></div><div>A carregar contrato…</div></div>';
-  try{
-    const d=await (await fetch(FETCH+'?deal_id='+encodeURIComponent(id))).json();
-    const f=d.fields||{}; f.min_month_total=f.min_month_total||'';
+  showOverlay('A gerar pre-visualizacao...');
+  fetch(FETCH+'?deal_id='+encodeURIComponent(id)).then(r=>r.json()).then(d=>{
+    const f=d.fields||{};
     DEALNAME=f.agreement_no||id;
-    document.getElementById('mTitle').textContent='ACMI Wet Lease — '+DEALNAME;
-    document.getElementById('mSub').textContent=(f.lessee_name||'')+(f.ac_type?(' · '+f.ac_type):'');
-    paper.innerHTML=merge(TEMPLATE,f);
-  }catch(e){ console.error(e); paper.innerHTML='<div class="loading"><div>Erro a carregar o Deal.</div></div>'; }
+    document.getElementById('mTitle').textContent='ACMI Wet Lease - '+DEALNAME;
+    document.getElementById('mSub').textContent=(f.lessee_name||'')+(f.ac_type?(' - '+f.ac_type):'');
+  }).catch(function(){});
+  const frame=document.getElementById('frame');
+  frame.onload=function(){ hideOverlay(); };
+  frame.src='/api/pdf?deal_id='+encodeURIComponent(id)+'#toolbar=1&view=FitH';
+  setTimeout(hideOverlay, 12000);
 }
 
 async function downloadPdf(){
   if(!DEALID){ toast('Escolhe um Deal primeiro'); return; }
-  const b=document.getElementById('dlBtn'); const t=b.textContent; b.textContent='A gerar…'; b.disabled=true;
+  const b=document.getElementById('dlBtn'); const t=b.textContent; b.textContent='A gerar...'; b.disabled=true;
   try{
     const r=await fetch('/api/pdf?deal_id='+encodeURIComponent(DEALID));
     if(!r.ok) throw new Error(r.status);
     const blob=await r.blob(); const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob); a.download='ACMI_'+DEALNAME+'.pdf'; document.body.appendChild(a); a.click(); a.remove();
+    a.href=URL.createObjectURL(blob); a.download='ACMI_'+DEALNAME+'.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
     toast('PDF descarregado');
   }catch(e){ toast('Falha ao gerar PDF'); }
   finally{ b.textContent=t; b.disabled=false; }
 }
+
 async function attachToCrm(){
   if(!DEALID){ toast('Escolhe um Deal primeiro'); return; }
   if(!confirm('Anexar o contrato ao Deal no Zoho CRM?')) return;
-  const b=document.getElementById('attachBtn'); const t=b.textContent; b.textContent='A anexar…'; b.disabled=true;
+  const b=document.getElementById('attachBtn'); const t=b.textContent; b.textContent='A anexar...'; b.disabled=true;
   try{
     const d=await (await fetch(GEN+'?deal_id='+encodeURIComponent(DEALID)+'&attach=1',{cache:'no-store'})).json();
-    toast(d.attached?'Anexado ao CRM ✓':'Concluído');
+    toast(d.attached?'Anexado ao CRM':'Concluido');
   }catch(e){ toast('Falha ao anexar'); }
   finally{ b.textContent=t; b.disabled=false; }
 }
+
 boot();
 </script>
 </body>

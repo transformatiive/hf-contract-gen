@@ -3,7 +3,13 @@
   "version": "3.0.0",
   "private": true,
   "description": "Hi Fly ACMI Wet Lease contract generator (Word-template merge + LibreOffice PDF)",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "express": "^4.19.2" },
-  "engines": { "node": ">=18" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

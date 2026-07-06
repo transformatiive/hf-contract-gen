@@ -16,18 +16,18 @@ const TEMPLATE = fs.readFileSync(path.join(__dirname, 'contract_template.html'),
 const CSS = fs.readFileSync(path.join(__dirname, 'contract_style.css'), 'utf8');
 
 function mergeHtml(fields){
+  if(fields.min_month_total===undefined) fields.min_month_total='';
   const body = TEMPLATE.replace(/\{\{(\w+)\}\}/g, (m,k)=>{
     const v = fields[k];
     return v ? v : '<span class="missing">['+k+']</span>';
   });
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>${CSS}
-@page{size:A4;margin:0}body{background:#fff}
-header,.panel{display:none!important}
-.page{width:100%;box-shadow:none;border:none;border-radius:0;padding:16mm 16mm;font-size:11.5px}
-.page .missing{background:none;border:none;color:#111a27}
-.appendix{page-break-before:always}.doc-cover{page-break-after:always}h3{page-break-after:avoid}
+@page{size:A4;margin:18mm 16mm}
+body{background:#fff}
+.page{width:100%;box-shadow:none;border:none;border-radius:0;padding:0}
+h2.clause,h2.appx{page-break-after:avoid}
+.defrow{page-break-inside:avoid}
 </style></head><body><article class="page">${body}</article></body></html>`;
 }
 
